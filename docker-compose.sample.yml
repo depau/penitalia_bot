@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  # Base bot
+  penitaliabot:
+    build: .
+    restart: unless-stopped
+    environment:
+      PENITALIA_TOKEN: "CHANGE_ME"
+      PENITALIA_ALLOWED_IDS: ""
+      PENITALIA_HTTP_URL: "https://changeme.com"
+      PENITALIA_ROOT_PATH: "/penitalia"
+      PENITALIA_HTTP_TOKEN: "CHANGE_ME"
+      PENITALIA_SAPI_ENDPOINT: "http://sapi:5000"
+      PENITALIA_VOICE_VENDOR: "Microsoft"
+      PENITALIA_VOICE_NAME: "Microsoft Sam"
+      REDIS_URL: "redis://redis:6379"
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      - redis
+      - sapi
+
+  # Web server (required for inline queries)
+  webserver:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      PENITALIA_ROOT_PATH: "/penitalia"
+      PENITALIA_HTTP_TOKEN: "CHANGE_ME"
+      PENITALIA_SAPI_ENDPOINT: "http://sapi:5000"
+      PENITALIA_VOICE_VENDOR: "Microsoft"
+      PENITALIA_VOICE_NAME: "Microsoft Sam"
+      REDIS_URL: "redis://redis:6379"
+    depends_on:
+      - redis
+      - sapi
+    entrypoint:
+      - hypercorn
+      - -b
+      - 0.0.0.0:8000
+      - "penitaliabot.server:app"
+
+  sapi:
+    image: ghcr.io/depau/sapispeechserver:latest
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
