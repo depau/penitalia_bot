@@ -1,0 +1,32 @@
+[project]
+name = "penitaliabot"
+version = "0.1.0"
+description = "A Telegram bot that speaks messages using an OpenAI-compatible TTS server"
+readme = "README.md"
+authors = [
+    { name = "Davide Depau", email = "davide@depau.eu" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "python-telegram-bot",
+    "aiohttp",
+    "quart",
+    "redis",
+    "hypercorn",
+    "httpx",
+]
+
+[project.scripts]
+penitaliabot = "penitaliabot.bot:main"
+
+[tool.uv]
+managed = true
+
+[build-system]
+requires = ["uv_build>=0.10.7,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.4",
+]

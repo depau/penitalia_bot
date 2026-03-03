@@ -1,22 +1,23 @@
 import asyncio
 import hashlib
 import traceback
-from typing import Optional, cast
+from typing import cast
 
 import redis
 import telegram
 from telegram import Bot, Update, InputFile
 from telegram.ext import Updater
 
-from penitaliabot import sapi
+from penitaliabot import tts
 from penitaliabot.config import Config
 
 
 class PenitaliaBot:
-    bot: Optional[Bot]
+    bot: Bot
 
     def __init__(self, config: Config, loop: asyncio.AbstractEventLoop):
         self.config = config
+        # noinspection PyTypeChecker
         self.bot = None
         self.token = config.telegram_token
         redis_url = config.redis_url
@@ -24,9 +25,9 @@ class PenitaliaBot:
             self.redis = redis.from_url(redis_url)
         else:
             self.redis = None
-        self.sapi_endpoint = config.sapi_endpoint
-        self.voice_vendor = config.voice_vendor
-        self.voice_name = config.voice_name
+        self.tts_url = config.tts_url
+        self.tts_model = config.tts_model
+        self.tts_voice = config.tts_voice
         self.http_token = config.http_token
         self.root_path = config.root_path
         self.http_url = config.http_url
@@ -40,7 +41,9 @@ class PenitaliaBot:
         self.loop = loop
         self.me = None
 
-    def user_allowed(self, user: telegram.User):
+    def user_allowed(self, user: telegram.User | None):
+        if user is None:
+            return False
         if len(self.allowed_ids) == 0:
             return True
         if user.id in self.allowed_ids:
@@ -71,10 +74,23 @@ class PenitaliaBot:
 
         asyncio.ensure_future(self.bot.send_chat_action(msg.chat.id, "upload_audio"))
 
-        opus = await sapi.sapi_get_opus(self.config, text)
-        await self.bot.send_voice(
-            msg.chat.id, InputFile(opus, "vm.ogg"), reply_to_message_id=msg.message_id
-        )
+        if self.http_url and self.redis:
+            text_id = hashlib.sha1(text.encode("utf-8")).hexdigest()
+            self.redis.set(text_id, text, ex=60 * 60 * 24)
+            url = (
+                f"{self.http_url}{self.root_path}/{text_id}.ogg?token={self.http_token}"
+            )
+            print(f"Sending voice by URL: {url}")
+            await self.bot.send_voice(
+                msg.chat.id, url, reply_to_message_id=msg.message_id
+            )
+        else:
+            opus = await tts.get_tts_opus(self.config, text)
+            await self.bot.send_voice(
+                msg.chat.id,
+                InputFile(opus, "vm.ogg"),
+                reply_to_message_id=msg.message_id,
+            )
 
     async def parse_inline_query(self, iq: telegram.InlineQuery):
         text = iq.query
@@ -159,7 +175,7 @@ class PenitaliaBot:
 def main():
     config = Config()
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
 
     bot = PenitaliaBot(config, loop)
     loop.run_until_complete(bot.run())

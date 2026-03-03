@@ -4,7 +4,7 @@ from typing import Optional
 import redis
 from quart import Quart, request
 
-from penitaliabot import sapi
+from penitaliabot import tts
 from penitaliabot.config import Config
 
 app = Quart(__name__)
@@ -25,8 +25,7 @@ async def penitalia_ogg(sha):
 
     text_u = text.decode("utf-8")
 
-    opus = await sapi.sapi_get_opus(config, text_u)
-    return opus, 200, {"Content-Type": "audio/ogg"}
+    return tts.stream_tts_opus(config, text_u), 200, {"Content-Type": "audio/ogg"}
 
 
 if __name__ == "__main__":
