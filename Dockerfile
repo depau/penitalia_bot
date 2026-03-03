@@ -23,4 +23,5 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Run the bot
-ENTRYPOINT ["penitaliabot"]
+ENTRYPOINT ["uv", "run"]
+CMD ["penitaliabot"]
